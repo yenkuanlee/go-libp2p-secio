@@ -44,6 +44,10 @@ type Session interface {
 	// which was received during the handshake.
 	RemotePublicKey() ci.PubKey
 
+	// RemoteGupkey retrieves the remote's group key
+	// which was received during the handshake.
+	RemoteGupkey() string
+
 	// Close closes the secure session
 	Close() error
 }
@@ -74,12 +78,20 @@ func (s *secureSession) RemotePeer() peer.ID {
 	return s.remotePeer
 }
 
-// RemotePeer retrieves the remote peer.
+// RemotePublicKey retrieves the remote public key.
 func (s *secureSession) RemotePublicKey() ci.PubKey {
 	if err := s.Handshake(); err != nil {
 		return nil
 	}
 	return s.remote.permanentPubKey
+}
+
+// RemoteGupkey retrieves the remote group key.
+func (s *secureSession) RemoteGupkey() string {
+	if err := s.Handshake(); err != nil {
+		return ""
+	}
+	return s.Gupkey3
 }
 
 // Close closes the secure session

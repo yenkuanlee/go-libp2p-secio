@@ -38,6 +38,7 @@ type encParams struct {
 	permanentPubKey ci.PubKey
 	ephemeralPubKey []byte
 	keys            ci.StretchedKeys
+	Gupkey2		string
 
 	// selections
 	curveT  string

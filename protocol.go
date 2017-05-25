@@ -1,6 +1,12 @@
 package secio
 
 import (
+	"encoding/base64"
+	"strings"
+	"bufio"
+	"os"
+	"github.com/ipfs/go-ipfs/Godeps/_workspace/src/github.com/mitchellh/go-homedir"
+
 	"bytes"
 	"context"
 	"crypto/rand"
@@ -16,6 +22,13 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 	pb "github.com/libp2p/go-libp2p-secio/pb"
 	mh "github.com/multiformats/go-multihash"
+)
+
+const (
+	DefaultPathName = ".ipfs"
+	DefaultPathRoot = "~/" + DefaultPathName
+	DefaultConfigFile = "config"
+	EnvDir = "IPFS_PATH"
 )
 
 var log = logging.Logger("secio")
@@ -59,6 +72,8 @@ type secureSession struct {
 	handshakeMu   sync.Mutex // guards handshakeDone + handshakeErr
 	handshakeDone bool
 	handshakeErr  error
+
+	Gupkey3	string
 }
 
 func (s *secureSession) Loggable() map[string]interface{} {
@@ -142,12 +157,16 @@ func (s *secureSession) runHandshake() error {
 		return err
 	}
 
+	Gupkey := GetGupkeyString()
+
 	proposeOut := new(pb.Propose)
 	proposeOut.Rand = nonceOut
 	proposeOut.Pubkey = myPubKeyBytes
 	proposeOut.Exchanges = &SupportedExchanges
 	proposeOut.Ciphers = &SupportedCiphers
 	proposeOut.Hashes = &SupportedHashes
+
+	proposeOut.Gupkey = &Gupkey
 
 	// log.Debugf("1.0 Propose: nonce:%s exchanges:%s ciphers:%s hashes:%s",
 	// 	nonceOut, SupportedExchanges, SupportedCiphers, SupportedHashes)
@@ -172,6 +191,10 @@ func (s *secureSession) runHandshake() error {
 	// step 1.1 Identify -- get identity from their key
 
 	// get remote identity
+
+	s.remote.Gupkey2 = proposeIn.GetGupkey()
+	s.Gupkey3 = proposeIn.GetGupkey();
+
 	s.remote.permanentPubKey, err = ci.UnmarshalPublicKey(proposeIn.GetPubkey())
 	if err != nil {
 		return err
@@ -348,4 +371,55 @@ func (s *secureSession) runHandshake() error {
 
 	// Whew! ok, that's all folks.
 	return nil
+}
+
+func GetGupkeyString() string{
+	ipfs_path, err := PathRoot()
+	if err != nil{
+		return "No IPFS Path"
+	}
+	inputFile, Error := os.Open(ipfs_path+"/config")
+	if Error != nil {
+		return "IO Exception"
+	}
+	defer inputFile.Close()
+	inputReader := bufio.NewReader(inputFile)
+	for {
+		inputString, Error := inputReader.ReadString('\n')
+		if Error == io.EOF {
+			return "EOF"
+		}
+		if strings.Contains(inputString,"GroupID"){
+			tmp := strings.Split(inputString,"\"")
+			Dstring, err := base64.StdEncoding.DecodeString(tmp[3])
+			if err!=nil{fmt.Printf("\nerror\n")}
+			uuid := GetUuid()
+			Gupkey := strings.Split(string(Dstring),uuid)[0]
+			return Gupkey
+		}
+	}
+}
+
+func PathRoot() (string, error) {
+	dir := os.Getenv(EnvDir)
+	var err error
+	if len(dir) == 0 {
+		dir, err = homedir.Expand(DefaultPathRoot)
+	}
+	return dir, err
+}
+
+func GetUuid() string{
+	inputFile, Error := os.Open("/tmp/.uuid.txt")
+	if Error != nil {
+		fmt.Println("error !!")
+		return "NO FILE"
+	}
+	defer inputFile.Close()
+	inputReader := bufio.NewReader(inputFile)
+	inputString, Error := inputReader.ReadString('\n')
+	if Error == io.EOF {
+		return "NO CONTENT"
+	}
+	return strings.Replace(inputString,"\n","",-1)
 }

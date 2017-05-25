@@ -27,6 +27,7 @@ type Propose struct {
 	Exchanges        *string `protobuf:"bytes,3,opt,name=exchanges" json:"exchanges,omitempty"`
 	Ciphers          *string `protobuf:"bytes,4,opt,name=ciphers" json:"ciphers,omitempty"`
 	Hashes           *string `protobuf:"bytes,5,opt,name=hashes" json:"hashes,omitempty"`
+	Gupkey           *string  `protobuf:"bytes,6,opt,name=Gupkey" json:"Gupkey,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }
 
@@ -39,6 +40,13 @@ func (m *Propose) GetRand() []byte {
 		return m.Rand
 	}
 	return nil
+}
+
+func (m *Propose) GetGupkey() string {
+	if m != nil && m.Gupkey != nil {
+		return *m.Gupkey
+	}
+	return "No Key!!!"
 }
 
 func (m *Propose) GetPubkey() []byte {
